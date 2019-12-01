@@ -1,0 +1,29 @@
+Regle:
+    - I/O standart pour la communication
+    - Utiliser python pour le proto
+
+
+
+Position Reel
+
+
+En debut de partie : [ID nbrPlayer speedMove speedFire dimArenax dimArenay]
+- Identifiant (INT)
+- nbrPlayer
+- Vitesse de déplacement
+- Vitesse des boulettes
+
+
+A chaque tour :
+- Alive or Not [ALIVE or DEAD] + [ ] + [floatx floaty]
+- Position
+- SI Information [INFO SizePlayers SizeBullets]
+    => List< pair<int, Vector2> > (Size + suite) JOUEUR [IDPlayer floatx floaty]
+    => List<Vector2, Vector2> (Size + suite) BOULETTE [floatx floaty]
+
+
+Action possible:
+- NONE
+- Information () [INFO]
+- Bouger (Vector2) [MOVE floatx floaty]
+- Tirer (Vector2) [FIRE floatx floaty]
