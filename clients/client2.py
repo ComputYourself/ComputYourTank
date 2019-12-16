@@ -3,4 +3,6 @@
 
 print("Info")
 input()
+print("Fire")
+input()
 print("Plop")
