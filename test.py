@@ -8,6 +8,7 @@ import subprocess
 import time
 import glob
 import signal
+import math
 
 processes = []
 
@@ -25,6 +26,35 @@ dimX = 128
 dimY = 128
 
 #nbPlayer = 3
+
+
+def tryMove(playerID, string):
+    words = string.split()
+    if len(words) != 3:
+        return False
+    x = float(words[1])
+    y = float(words[2])
+    direction = [x - playersPos[playerID][0], y - playersPos[playerID][1]]
+    norm = math.sqrt(direction[0] * direction[0] + direction[1] * direction[1])
+    if norm==0: # The player tries to move to where he already is, do not make move at all
+        return True
+    direction[0] /= norm
+    direction[1] /= norm
+    direction *= playerSpeed
+    newPos = (playersPos[playerID][0] + direction[0], playersPos[playerID][1] + direction[1])
+    print("playersPos[playerID] : "+str(playersPos[playerID][0])+" "+str(playersPos[playerID][1]))
+    print("direction : "+str(direction[0])+" "+str(direction[1]))
+    print("newPos : "+str(newPos[0])+" "+str(newPos[1]))
+
+    playersPos[playerID][0] = max(min(newPos[0], dimX), 0)
+    playersPos[playerID][1] = max(min(newPos[1], dimY), 0)
+    return True
+
+    
+
+
+
+
 
 
 def child(ident, program):
@@ -88,14 +118,18 @@ def server(nbPlayer):
         for i in range(nbPlayer):
             if playerState[i] == "ALIVE":
                 firstLine = readFiles[i].readline()
-                char = firstLine[0]
                 if firstLine[0] == 'I':
                     print("Player "+ str(i) +" Infos")
                     for i in range(nbPlayer):
                         line = str.encode("JOUEUR " + str(i) + " " + str(playersPos[i][0]) + " " + str(playersPos[i][1]) + "\n")
                         os.write(pipes[i][0][1], line)
                 elif firstLine[0] == 'M':
-                    print("Player "+ str(i) +" Move")
+                    if tryMove(i, firstLine) == True:
+                        words = firstLine.split()
+                        print("Player "+ str(i) +" moves toward "+words[1]+" "+words[2])
+                    else:
+                        print("Player "+ str(i) +" lost by inaction")
+                        playerState[i] = "DEAD"
                 elif firstLine[0] == 'F':
                     print("Player "+ str(i) +" Fire")
                 else:

@@ -5,7 +5,7 @@ print("Info")
 
 while True:
     input()
-    print("Move")
+    print("Move 128 128")
 input()
 print("Plop")
 
