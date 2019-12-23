@@ -4,9 +4,8 @@
 print("Info")
 input()
 print("Fire")
-while True:
-    input()
-    print("Move 128 128")
+input()
+print("Move")
 input()
 print("Fire")
 input()

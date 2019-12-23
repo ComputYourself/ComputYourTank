@@ -9,73 +9,98 @@ import time
 import glob
 import signal
 import math
+from bullet import Bullet
 
-processes = []
+PROCESSES = []
 
-playerState = []
-playersPos = []
-bulletsPos = []
-pipes = []
-actions = []
+PLAYER_STATES = []
+PLAYER_POS = []
+BULLETS = []
+PIPES = []
+ACTIONS = []
 
-readFiles = []
+READFILES = []
 
-playerSpeed = 1
-bulletSpeed = 1
-dimX = 128
-dimY = 128
-
-#nbPlayer = 3
+PLAYER_SPEED = 1
+BULLET_SPEED = 2
+DIM_X = 128
+DIM_Y = 128
 
 
-def tryMove(playerID, string):
+def try_move(player_id, string):
+    """Process a movement from a player.
+
+    Returns true if request is processed, false if wrongly formed"""
     words = string.split()
     if len(words) != 3:
         return False
-    x = float(words[1])
-    y = float(words[2])
-    direction = [x - playersPos[playerID][0], y - playersPos[playerID][1]]
+    x_direction = float(words[1])
+    y_direction = float(words[2])
+    direction = [x_direction - PLAYER_POS[player_id][0],
+                 y_direction - PLAYER_POS[player_id][1]]
     norm = math.sqrt(direction[0] * direction[0] + direction[1] * direction[1])
-    if norm==0: # The player tries to move to where he already is, do not make move at all
+    if norm == 0:  # The player tries to move to where he already is, do not make move at all
         return True
     direction[0] /= norm
     direction[1] /= norm
-    direction *= playerSpeed
-    newPos = (playersPos[playerID][0] + direction[0], playersPos[playerID][1] + direction[1])
-    print("playersPos[playerID] : "+str(playersPos[playerID][0])+" "+str(playersPos[playerID][1]))
-    print("direction : "+str(direction[0])+" "+str(direction[1]))
-    print("newPos : "+str(newPos[0])+" "+str(newPos[1]))
+    if norm > PLAYER_SPEED:
+        direction *= PLAYER_SPEED
+    new_pos = (PLAYER_POS[player_id][0] + direction[0],
+               PLAYER_POS[player_id][1] + direction[1])
+    # print("playersPos[playerID] : "+str(playersPos[playerID][0])+" "+str(playersPos[playerID][1]))
+    # print("direction : "+str(direction[0])+" "+str(direction[1]))
+    # print("newPos : "+str(newPos[0])+" "+str(newPos[1]))
 
-    playersPos[playerID][0] = max(min(newPos[0], dimX), 0)
-    playersPos[playerID][1] = max(min(newPos[1], dimY), 0)
+    PLAYER_POS[player_id][0] = max(min(new_pos[0], DIM_X), 0)
+    PLAYER_POS[player_id][1] = max(min(new_pos[1], DIM_Y), 0)
     return True
 
-    
+
+def try_fire(player_id, string):
+    """Process a shot from a player.
+
+    Returns true if request is processed, false if wrongly formed"""
+    words = string.split()
+    if len(words) != 3:
+        return False
+    x_destination = float(words[1])
+    y_destination = float(words[2])
+    direction = [x_destination - PLAYER_POS[player_id][0],
+                 y_destination - PLAYER_POS[player_id][1]]
+    norm = math.sqrt(direction[0] * direction[0] + direction[1] * direction[1])
+    if norm == 0:
+        return False
+    position = (PLAYER_POS[player_id][0] + direction[0] / norm,
+                PLAYER_POS[player_id][1] + direction[1]/norm)
+    BULLETS.append(
+        Bullet((x_destination, y_destination), position, BULLET_SPEED))
+    return True
 
 
-
-
+def move_bullets():
+    """Moves each bullet a step further, and checks if they collided on the way"""
+    return False
 
 
 def child(ident, program):
+    """Open pipes to cummunicate with server then fetches and exec the IA program to be a player"""
     print("A new child", os.getpid(), "player", ident, "exec program", program)
-   
+
     # sys.stderr.write("plop2")
-   
+
     try:
-        os.dup2(pipes[ident][0][0], sys.stdin.fileno())
-        os.dup2(pipes[ident][1][1], sys.stdout.fileno())
+        os.dup2(PIPES[ident][0][0], sys.stdin.fileno())
+        os.dup2(PIPES[ident][1][1], sys.stdout.fileno())
 
         # subprocess.call(program)
         subprocess.Popen(program)
         # processes.append(subprocess.Popen(program))
 
-
     except ValueError:
         sys.stderr.write("plop1")
-        
+
     time.sleep(2)
-    
+
     # # Cleaning pipes
     # try:
     #     os.close(pipes[ident][0][0])
@@ -84,74 +109,77 @@ def child(ident, program):
     #     os.close(pipes[ident][1][1])
     # except ValueError:
     #     sys.stderr.write("plop2")
-        
-    
 
-    os._exit(0)
-    
+    os._exit(0)  # pylint: disable=W0212
 
-def server(nbPlayer):
+
+def server(nb_player):
+    """Body of the server"""
     # Initialisation
-    actions = ["NONE"] * nbPlayer
-    playerState = ["ALIVE"] * nbPlayer
-    for i in range(nbPlayer):
-        readFiles.append(os.fdopen(pipes[i][1][0], 'r'))
-        playersPos.append([0, 0]) #TODO positioner qqpart
-        line = str.encode(str(i) + " " + str(nbPlayer) + " " + str(playerSpeed) + " " + str(bulletSpeed) + " " + str(dimX) + " " + str(dimY) + "\n")
-        os.write(pipes[i][0][1], line)
-    
-    
-    gameEnded = False
-    
-    while not gameEnded: # Turn loop
-        #input() # a des fins de test
+    actions = ["NONE"] * nb_player
+    player_state = ["ALIVE"] * nb_player
+    for i in range(nb_player):
+        READFILES.append(os.fdopen(PIPES[i][1][0], 'r'))
+        PLAYER_POS.append([0, 0])  # TODO positioner qqpart
+        line = str.encode(str(i) + " " + str(nb_player) + " " + str(PLAYER_SPEED) +
+                          " " + str(BULLET_SPEED) + " " + str(DIM_X) + " " + str(DIM_Y) + "\n")
+        os.write(PIPES[i][0][1], line)
+
+    game_ended = False
+
+    # Turn loop
+    while not game_ended:
+        # input() # a des fins de test
         print("\n===========================")
-        for i in range(nbPlayer):
+        for i in range(nb_player):
             actions[i] = "NONE"
-            line = str.encode(str(playerState[i]) + " " + str(playersPos[i][0]) + " " + str(playersPos[i][1]) + "\n")
-            print("Player "+str(i)+" "+str(playerState[i]) + " " + str(playersPos[i][0]) + " " + str(playersPos[i][1]))
-            os.write(pipes[i][0][1], line)
+            line = str.encode(str(
+                player_state[i]) + " " + str(PLAYER_POS[i][0]) + " " + str(PLAYER_POS[i][1]) + "\n")
+            print("Player "+str(i)+" "+str(player_state[i]) + " " + str(
+                PLAYER_POS[i][0]) + " " + str(PLAYER_POS[i][1]))
+            os.write(PIPES[i][0][1], line)
 
         # TODO le mouvement des balles ici
 
-            
-        for i in range(nbPlayer):
-            if playerState[i] == "ALIVE":
-                firstLine = readFiles[i].readline()
-                if firstLine[0] == 'I':
-                    print("Player "+ str(i) +" Infos")
-                    for i in range(nbPlayer):
-                        line = str.encode("JOUEUR " + str(i) + " " + str(playersPos[i][0]) + " " + str(playersPos[i][1]) + "\n")
-                        os.write(pipes[i][0][1], line)
-                elif firstLine[0] == 'M':
-                    if tryMove(i, firstLine) == True:
-                        words = firstLine.split()
-                        print("Player "+ str(i) +" moves toward "+words[1]+" "+words[2])
+        for i in range(nb_player):
+            if player_state[i] == "ALIVE":
+                first_line = READFILES[i].readline()
+                if first_line[0] == 'I':
+                    print("Player " + str(i) + " Infos")
+                    for j in range(nb_player):
+                        line = str.encode(
+                            "JOUEUR " + str(j) + " " + str(PLAYER_POS[j][0]) + " " + str(PLAYER_POS[j][1]) + "\n")
+                        os.write(PIPES[j][0][1], line)
+                elif first_line[0] == 'M':
+                    if try_move(i, first_line):
+                        words = first_line.split()
+                        print("Player " + str(i) +
+                              " moves toward "+words[1]+" "+words[2])
                     else:
-                        print("Player "+ str(i) +" lost by inaction")
-                        playerState[i] = "DEAD"
-                elif firstLine[0] == 'F':
-                    print("Player "+ str(i) +" Fire")
+                        print("Player " + str(i) + " lost by inaction")
+                        player_state[i] = "DEAD"
+                elif first_line[0] == 'F':
+                    print("Player " + str(i) + " Fire")
                 else:
-                    print("Player "+ str(i) +" lost by inaction")
-                    playerState[i] = "DEAD"
+                    print("Player " + str(i) + " lost by inaction")
+                    player_state[i] = "DEAD"
 
         # Checks if at least two players are alive
-        onePlayerAlive = False
-        gameEnded = True
-        for i in range(nbPlayer):
-            if playerState[i] == "ALIVE":
-                if not onePlayerAlive :
-                    onePlayerAlive = True
-                else :
-                    gameEnded = False
+        is_one_player_alive = False
+        game_ended = True
+        for i in range(nb_player):
+            if player_state[i] == "ALIVE":
+                if not is_one_player_alive:
+                    is_one_player_alive = True
+                else:
+                    game_ended = False
                     break
-        
-        if gameEnded:
+
+        if game_ended:
             print("\nGAME OVER")
             draw = True
-            for i in range(nbPlayer):
-                if playerState[i] == "ALIVE":
+            for i in range(nb_player):
+                if player_state[i] == "ALIVE":
                     draw = False
                     print("Player "+str(i)+" won")
             if draw:
@@ -163,42 +191,38 @@ def server(nbPlayer):
             #     p.terminate()
 
             # Cleaning pipes
-            for ident in range(nbPlayer):
+            for ident in range(nb_player):
                 try:
-                    os.kill(processes[ident], signal.SIGSTOP) 
-                    os.close(pipes[ident][0][0])
-                    os.close(pipes[ident][0][1])
-                    os.close(pipes[ident][1][0])
-                    os.close(pipes[ident][1][1])
+                    os.kill(PROCESSES[ident], signal.SIGSTOP)
+                    os.close(PIPES[ident][0][0])
+                    os.close(PIPES[ident][0][1])
+                    os.close(PIPES[ident][1][0])
+                    os.close(PIPES[ident][1][1])
                 except ValueError:
                     sys.stderr.write("plop2")
             os._exit(0)
-            
 
-
-    
-    
 
 def main():
-    
-    # TODO pour chancun des enfant, lui faire ouvrir une IA differente des autres dans le dossier ./clients
+    """Main fonction"""
+    # For each child process, open an IA code from ./clients folder
     clients = glob.glob('./clients/*')
-    nbPlayer = len(clients)
+    nb_player = len(clients)
 
-    print("nbPlayer = "+str(nbPlayer))
+    print("nbPlayer = "+str(nb_player))
     print("Parent", os.getpid())
-    for ident in range(nbPlayer):
+    for ident in range(nb_player):
         pinr, pinw = os.pipe()
         poutr, poutw = os.pipe()
-        pipes.append([[pinr,pinw], [poutr, poutw]])
+        PIPES.append([[pinr, pinw], [poutr, poutw]])
         newpid = os.fork()
-        if newpid == 0: #I'm the child
+        if newpid == 0:  # I'm the child
             child(ident, clients[ident])
-        else: # I'm the server
+        else:  # I'm the server
             pids = (os.getpid(), newpid)
-            processes.append(newpid)
-    
-    server(nbPlayer)
+            PROCESSES.append(newpid)
+
+    server(nb_player)
 
 
 main()
