@@ -17,14 +17,15 @@ PLAYER_STATES = []
 PLAYER_POS = []
 BULLETS = []
 PIPES = []
+READPIPES = []
 ACTIONS = []
 
-READFILES = []
 
 PLAYER_SPEED = 1
 BULLET_SPEED = 2
 DIM_X = 128
 DIM_Y = 128
+TANK_RADIUS = 1
 
 
 def try_move(player_id, string):
@@ -72,14 +73,63 @@ def try_fire(player_id, string):
         return False
     position = (PLAYER_POS[player_id][0] + direction[0] / norm,
                 PLAYER_POS[player_id][1] + direction[1]/norm)
-    BULLETS.append(
-        Bullet((x_destination, y_destination), position, BULLET_SPEED))
+    destination = (x_destination, y_destination)
+    BULLETS.append(Bullet(destination, position +
+                          destination * TANK_RADIUS, BULLET_SPEED))
     return True
 
 
 def move_bullets():
     """Moves each bullet a step further, and checks if they collided on the way"""
-    return False
+    for bullet in BULLETS:
+        hit = False
+        min_t = 0
+        tank_no = 0
+        position = bullet.position()
+        destination = bullet.step()  # Actually moves the bullet
+        vector = (destination[0] - position[0], destination[1] - position[1])
+        for i, tank_position in enumerate(PLAYER_POS):
+
+            a_coeff = vector[0] * vector[0] + vector[1] * vector[1]
+            temp = (position[0] - tank_position[0], position[1] - tank_position[1])
+            b_coeff = 2 * (vector[0] * temp[0] + vector[1] * temp[1])
+            c_coeff = position[0] * position[0] + position[1] * position[1]
+            c_coeff += tank_position[0] * tank_position[0] + \
+                tank_position[1] * tank_position[1]
+            c_coeff -= 2 * \
+                (position[0] * tank_position[0] +
+                 position[1] * tank_position[1])
+            c_coeff -= TANK_RADIUS * TANK_RADIUS
+            discriminant = b_coeff*b_coeff - 4*a_coeff*c_coeff
+            if discriminant >= 0:
+                sqrt_disc = math.sqrt(discriminant)
+                root1 = (-b_coeff + sqrt_disc) / (2 * a_coeff)
+                root2 = (-b_coeff - sqrt_disc) / (2 * a_coeff)
+
+                if 0 <= root1 <= 1:
+                    if min_t == 0:
+                        min_t = root1
+                        hit = True
+                        tank_no = i
+                    else:
+                        if root1 < min_t:
+                            min_t = root1
+                            tank_no = i
+                if 0 <= root2 <= 1:
+                    if min_t == 0:
+                        min_t = root2
+                        hit = True
+                        tank_no = i
+                    else:
+                        if root2 < min_t:
+                            min_t = root2
+                            tank_no = i
+
+        if hit:
+            PLAYER_STATES[tank_no] = "DEAD"
+            print("Player " + str(tank_no) + " has been shot")
+            BULLETS.remove(bullet)
+
 
 
 def child(ident, program):
@@ -113,13 +163,51 @@ def child(ident, program):
     os._exit(0)  # pylint: disable=W0212
 
 
+def end_check(nb_player):
+    """Checks if at least two players are alive, else the game should end"""
+    is_one_player_alive = False
+    for i in range(nb_player):
+        if PLAYER_STATES[i] == "ALIVE":
+            if not is_one_player_alive:
+                is_one_player_alive = True
+            else:
+                return False
+
+    print("\nGAME OVER")
+    draw = True
+    for i in range(nb_player):
+        if PLAYER_STATES[i] == "ALIVE":
+            draw = False
+            print("Player "+str(i)+" won")
+    if draw:
+        print("Draw")
+
+    # print(processes)
+    # for p in processes:
+    #     print("process "+str(p))
+    #     p.terminate()
+
+    # Cleaning pipes
+    for ident in range(nb_player):
+        try:
+            os.kill(PROCESSES[ident], signal.SIGSTOP)
+            os.close(PIPES[ident][0][0])
+            os.close(PIPES[ident][0][1])
+            os.close(PIPES[ident][1][0])
+            os.close(PIPES[ident][1][1])
+        except ValueError:
+            sys.stderr.write("plop2")
+    os._exit(0)
+    return True
+
+
 def server(nb_player):
     """Body of the server"""
     # Initialisation
-    actions = ["NONE"] * nb_player
-    player_state = ["ALIVE"] * nb_player
     for i in range(nb_player):
-        READFILES.append(os.fdopen(PIPES[i][1][0], 'r'))
+        ACTIONS.append("NONE")
+        PLAYER_STATES.append("ALIVE")
+        READPIPES.append(os.fdopen(PIPES[i][1][0], 'r'))
         PLAYER_POS.append([0, 0])  # TODO positioner qqpart
         line = str.encode(str(i) + " " + str(nb_player) + " " + str(PLAYER_SPEED) +
                           " " + str(BULLET_SPEED) + " " + str(DIM_X) + " " + str(DIM_Y) + "\n")
@@ -132,75 +220,46 @@ def server(nb_player):
         # input() # a des fins de test
         print("\n===========================")
         for i in range(nb_player):
-            actions[i] = "NONE"
-            line = str.encode(str(
-                player_state[i]) + " " + str(PLAYER_POS[i][0]) + " " + str(PLAYER_POS[i][1]) + "\n")
-            print("Player "+str(i)+" "+str(player_state[i]) + " " + str(
+            ACTIONS[i] = "NONE"
+            line = str.encode(str(PLAYER_STATES[i]) +
+                              " " + str(PLAYER_POS[i][0]) + " " + str(PLAYER_POS[i][1]) + "\n")
+            print("Player "+str(i)+" "+str(PLAYER_STATES[i]) + " " + str(
                 PLAYER_POS[i][0]) + " " + str(PLAYER_POS[i][1]))
             os.write(PIPES[i][0][1], line)
 
-        # TODO le mouvement des balles ici
+        move_bullets()
 
         for i in range(nb_player):
-            if player_state[i] == "ALIVE":
-                first_line = READFILES[i].readline()
+            if PLAYER_STATES[i] == "ALIVE":
+                first_line = READPIPES[i].readline()
                 if first_line[0] == 'I':
                     print("Player " + str(i) + " Infos")
                     for j in range(nb_player):
                         line = str.encode(
                             "JOUEUR " + str(j) + " " + str(PLAYER_POS[j][0]) + " " + str(PLAYER_POS[j][1]) + "\n")
                         os.write(PIPES[j][0][1], line)
-                elif first_line[0] == 'M':
+                elif first_line[0] == 'M':  # If player moves
                     if try_move(i, first_line):
                         words = first_line.split()
                         print("Player " + str(i) +
                               " moves toward "+words[1]+" "+words[2])
                     else:
-                        print("Player " + str(i) + " lost by inaction")
-                        player_state[i] = "DEAD"
-                elif first_line[0] == 'F':
-                    print("Player " + str(i) + " Fire")
-                else:
+                        print("Player " + str(i) + " went into a wall and died")
+                        PLAYER_STATES[i] = "DEAD"
+                elif first_line[0] == 'F':  # If player fires
+                    if try_fire(i, first_line):
+                        words = first_line.split()
+                        print("Player " + str(i) +
+                              " fires toward "+words[1]+" "+words[2])
+                    else:
+                        print("Player " + str(i) + " misfired and exploded")
+                        PLAYER_STATES[i] = "DEAD"
+                else:  # If player does nothing
                     print("Player " + str(i) + " lost by inaction")
-                    player_state[i] = "DEAD"
+                    PLAYER_STATES[i] = "DEAD"
 
         # Checks if at least two players are alive
-        is_one_player_alive = False
-        game_ended = True
-        for i in range(nb_player):
-            if player_state[i] == "ALIVE":
-                if not is_one_player_alive:
-                    is_one_player_alive = True
-                else:
-                    game_ended = False
-                    break
-
-        if game_ended:
-            print("\nGAME OVER")
-            draw = True
-            for i in range(nb_player):
-                if player_state[i] == "ALIVE":
-                    draw = False
-                    print("Player "+str(i)+" won")
-            if draw:
-                print("Draw")
-
-            # print(processes)
-            # for p in processes:
-            #     print("process "+str(p))
-            #     p.terminate()
-
-            # Cleaning pipes
-            for ident in range(nb_player):
-                try:
-                    os.kill(PROCESSES[ident], signal.SIGSTOP)
-                    os.close(PIPES[ident][0][0])
-                    os.close(PIPES[ident][0][1])
-                    os.close(PIPES[ident][1][0])
-                    os.close(PIPES[ident][1][1])
-                except ValueError:
-                    sys.stderr.write("plop2")
-            os._exit(0)
+        game_ended = end_check(nb_player)
 
 
 def main():
@@ -219,7 +278,7 @@ def main():
         if newpid == 0:  # I'm the child
             child(ident, clients[ident])
         else:  # I'm the server
-            pids = (os.getpid(), newpid)
+            #pids = (os.getpid(), newpid)
             PROCESSES.append(newpid)
 
     server(nb_player)
