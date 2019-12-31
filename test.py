@@ -9,6 +9,7 @@ import time
 import glob
 import signal
 import math
+import random
 from bullet import Bullet
 
 PROCESSES = []
@@ -204,11 +205,13 @@ def end_check(nb_player):
 def server(nb_player):
     """Body of the server"""
     # Initialisation
+    random.seed()
     for i in range(nb_player):
         ACTIONS.append("NONE")
         PLAYER_STATES.append("ALIVE")
         READPIPES.append(os.fdopen(PIPES[i][1][0], 'r'))
-        PLAYER_POS.append([0, 0])  # TODO positioner qqpart
+
+        PLAYER_POS.append([random.uniform(0, DIM_X), random.uniform(0, DIM_Y)])
         line = str.encode(str(i) + " " + str(nb_player) + " " + str(PLAYER_SPEED) +
                           " " + str(BULLET_SPEED) + " " + str(DIM_X) + " " + str(DIM_Y) + "\n")
         os.write(PIPES[i][0][1], line)
