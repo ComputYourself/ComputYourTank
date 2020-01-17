@@ -1,0 +1,32 @@
+nbPlayer = 3
+Parent 7556
+A new child 7557 player 0 exec program ./clients/client2 (copie).py
+A new child 7558 player 1 exec program ./clients/client2.py
+A new child 7559 player 2 exec program ./clients/client.py
+
+===========================
+Player 0 ALIVE 88.5709994219232 119.94820246300631
+Player 1 ALIVE 42.54603903665624 121.86545327592819
+Player 2 ALIVE 123.3259439501891 22.657651981478537
+Player 0 Infos
+Player 1 Infos
+Player 2 Infos
+
+===========================
+Player 0 ALIVE 88.5709994219232 119.94820246300631
+Player 1 ALIVE 42.54603903665624 121.86545327592819
+Player 2 ALIVE 123.3259439501891 22.657651981478537
+Player 0 misfired and exploded
+in fire (128.0, 128.0)
+Player 1 fires toward 128 128
+Player 2 moves toward 128 128
+
+===========================
+Player 0 DEAD 88.5709994219232 119.94820246300631
+Player 1 ALIVE 42.54603903665624 121.86545327592819
+Player 2 ALIVE 123.37027049111478 23.65666907731302
+Player 1 has been shot
+Player 2 moves toward 128 128
+
+GAME OVER
+Player 2 won

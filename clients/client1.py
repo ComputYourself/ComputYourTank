@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 
-
 print("Info")
-
-while True:
+input()
+print("Fire 128 128")
+for i in range(1, 10):
     input()
-    print("Move 128 128")
+    print("Info")
 input()
 print("Plop")
-
-
-
-

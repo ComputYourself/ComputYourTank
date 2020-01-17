@@ -67,32 +67,42 @@ def try_fire(player_id, string):
         return False
     x_destination = float(words[1])
     y_destination = float(words[2])
-    direction = [x_destination - PLAYER_POS[player_id][0],
-                 y_destination - PLAYER_POS[player_id][1]]
+    direction = (x_destination - PLAYER_POS[player_id][0],
+                 y_destination - PLAYER_POS[player_id][1])
     norm = math.sqrt(direction[0] * direction[0] + direction[1] * direction[1])
     if norm == 0:
         return False
     position = (PLAYER_POS[player_id][0] + direction[0] / norm,
                 PLAYER_POS[player_id][1] + direction[1]/norm)
     destination = (x_destination, y_destination)
-    BULLETS.append(Bullet(destination, position +
-                          destination * TANK_RADIUS, BULLET_SPEED))
+
+    print("in fire "+str(direction * 2))
+    print("in fire "+str(position + direction))
+
+    tank_output = TANK_RADIUS + 0.01
+    BULLETS.append(Bullet(destination, ((position[0] + direction[0] * tank_output),
+                          (position[1] + direction[1] * tank_output)), BULLET_SPEED))
     return True
 
 
 def move_bullets():
     """Moves each bullet a step further, and checks if they collided on the way"""
     for bullet in BULLETS:
+        print(bullet)
         hit = False
         min_t = 0
         tank_no = 0
         position = bullet.position()
+        if(position[0] > DIM_X or position[0] < 0 or position[1] > DIM_Y or position[1] < 0):
+            del bullet
+            continue
         destination = bullet.step()  # Actually moves the bullet
         vector = (destination[0] - position[0], destination[1] - position[1])
         for i, tank_position in enumerate(PLAYER_POS):
 
             a_coeff = vector[0] * vector[0] + vector[1] * vector[1]
-            temp = (position[0] - tank_position[0], position[1] - tank_position[1])
+            temp = (position[0] - tank_position[0],
+                    position[1] - tank_position[1])
             b_coeff = 2 * (vector[0] * temp[0] + vector[1] * temp[1])
             c_coeff = position[0] * position[0] + position[1] * position[1]
             c_coeff += tank_position[0] * tank_position[0] + \
@@ -130,7 +140,6 @@ def move_bullets():
             PLAYER_STATES[tank_no] = "DEAD"
             print("Player " + str(tank_no) + " has been shot")
             BULLETS.remove(bullet)
-
 
 
 def child(ident, program):
@@ -202,9 +211,23 @@ def end_check(nb_player):
     return True
 
 
-def server(nb_player):
-    """Body of the server"""
-    # Initialisation
+def init_game(nb_player):
+    # TODO ne pas utiliser, le server se kill à  la fin d'une partie pour le moment
+    """Initialise variables for a game and send the first line to each bot.
+    First line is :
+    [ownID] [number of players] [player speed] [bullet speed] [X dimension of map] [Y dimension of map]"""
+    for i in range(nb_player):
+        ACTIONS[i] = "NONE"
+        PLAYER_STATES[i] = "ALIVE"
+        PLAYER_POS[i] = [random.uniform(0, DIM_X), random.uniform(0, DIM_Y)]
+        line = str.encode(str(i) + " " + str(nb_player) + " " + str(PLAYER_SPEED) +
+                          " " + str(BULLET_SPEED) + " " + str(DIM_X) + " " + str(DIM_Y) + "\n")
+        os.write(PIPES[i][0][1], line)
+
+
+def init_server(nb_player):
+    """Server initialisation.
+    Sets the pipes for communication with clients and beginning states for the game"""
     random.seed()
     for i in range(nb_player):
         ACTIONS.append("NONE")
@@ -215,6 +238,11 @@ def server(nb_player):
         line = str.encode(str(i) + " " + str(nb_player) + " " + str(PLAYER_SPEED) +
                           " " + str(BULLET_SPEED) + " " + str(DIM_X) + " " + str(DIM_Y) + "\n")
         os.write(PIPES[i][0][1], line)
+
+
+def server(nb_player):
+    """Body of the server"""
+    init_server(nb_player)
 
     game_ended = False
 
@@ -265,10 +293,11 @@ def server(nb_player):
         game_ended = end_check(nb_player)
 
 
+
 def main():
     """Main fonction"""
     # For each child process, open an IA code from ./clients folder
-    clients = glob.glob('./clients/*')
+    clients = sorted(glob.glob('./clients/*'))
     nb_player = len(clients)
 
     print("nbPlayer = "+str(nb_player))

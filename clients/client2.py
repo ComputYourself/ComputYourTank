@@ -3,8 +3,10 @@
 
 print("Info")
 input()
-print("Fire 128 128")
+print("Fire")
 input()
-print("Info")
+print("Move")
+input()
+print("Fire")
 input()
 print("Plop")
