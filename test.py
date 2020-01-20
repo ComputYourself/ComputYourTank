@@ -245,11 +245,13 @@ def server(nb_player):
     init_server(nb_player)
 
     game_ended = False
+    turn = 0
 
     # Turn loop
     while not game_ended:
         # input() # a des fins de test
-        print("\n===========================")
+        turn += 1
+        print("\n=========================== TURN " + str(turn))
         for i in range(nb_player):
             ACTIONS[i] = "NONE"
             line = str.encode(str(PLAYER_STATES[i]) +
@@ -263,11 +265,11 @@ def server(nb_player):
         for i in range(nb_player):
             if PLAYER_STATES[i] == "ALIVE":
                 first_line = READPIPES[i].readline()
-                if first_line[0] == 'I':
+                if first_line[0] == 'I': # If player zasks for infos
                     print("Player " + str(i) + " Infos")
                     for j in range(nb_player):
                         line = str.encode(
-                            "JOUEUR " + str(j) + " " + str(PLAYER_POS[j][0]) + " " + str(PLAYER_POS[j][1]) + "\n")
+                            "JOUEUR " + str(j) + " " + PLAYER_STATES[j] + " " + str(PLAYER_POS[j][0]) + " " + str(PLAYER_POS[j][1]) + "\n")
                         os.write(PIPES[j][0][1], line)
                 elif first_line[0] == 'M':  # If player moves
                     if try_move(i, first_line):
