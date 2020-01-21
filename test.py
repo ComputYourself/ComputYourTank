@@ -30,7 +30,7 @@ TANK_RADIUS = 1
 
 
 def try_move(player_id, string):
-    """Process a movement from a player.
+    """Process a movement instruction from a player.
 
     Returns true if request is processed, false if wrongly formed"""
     words = string.split()
@@ -59,11 +59,11 @@ def try_move(player_id, string):
 
 
 def try_fire(player_id, string):
-    """Process a shot from a player.
+    """Process a shot instruction from a player.
 
     Returns true if request is processed, false if wrongly formed"""
     words = string.split()
-    if len(words) != 3:
+    if len(words) < 3:
         return False
     x_destination = float(words[1])
     y_destination = float(words[2])
@@ -76,12 +76,12 @@ def try_fire(player_id, string):
                 PLAYER_POS[player_id][1] + direction[1]/norm)
     destination = (x_destination, y_destination)
 
-    print("in fire "+str(direction * 2))
-    print("in fire "+str(position + direction))
+    # print("in fire "+str(direction * 2))
+    # print("in fire "+str(position + direction))
 
     tank_output = TANK_RADIUS + 0.01
     BULLETS.append(Bullet(destination, ((position[0] + direction[0] * tank_output),
-                          (position[1] + direction[1] * tank_output)), BULLET_SPEED))
+                                        (position[1] + direction[1] * tank_output)), BULLET_SPEED))
     return True
 
 
@@ -240,6 +240,15 @@ def init_server(nb_player):
         os.write(PIPES[i][0][1], line)
 
 
+def give_infos(nb_player, asking_id):
+    """Give information on the state of each player to an asking player"""
+    print("Player " + str(asking_id) + " Infos")
+    for j in range(nb_player):
+        line = str.encode(
+            "JOUEUR " + str(j) + " " + PLAYER_STATES[j] + " " + str(PLAYER_POS[j][0]) + " " + str(PLAYER_POS[j][1]) + "\n")
+        os.write(PIPES[asking_id][0][1], line)
+
+
 def server(nb_player):
     """Body of the server"""
     init_server(nb_player)
@@ -265,12 +274,10 @@ def server(nb_player):
         for i in range(nb_player):
             if PLAYER_STATES[i] == "ALIVE":
                 first_line = READPIPES[i].readline()
-                if first_line[0] == 'I': # If player zasks for infos
-                    print("Player " + str(i) + " Infos")
-                    for j in range(nb_player):
-                        line = str.encode(
-                            "JOUEUR " + str(j) + " " + PLAYER_STATES[j] + " " + str(PLAYER_POS[j][0]) + " " + str(PLAYER_POS[j][1]) + "\n")
-                        os.write(PIPES[j][0][1], line)
+                # Print what the player answered
+                # print(first_line)
+                if first_line[0] == 'I': # If player asks for infos
+                    give_infos(nb_player, i)
                 elif first_line[0] == 'M':  # If player moves
                     if try_move(i, first_line):
                         words = first_line.split()
