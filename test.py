@@ -174,7 +174,7 @@ def child(ident, program):
 
 
 def end_check(nb_player):
-    """Checks if at least two players are alive, else the game should end"""
+    """Checks if the game should end (if less then two players are alive)"""
     is_one_player_alive = False
     for i in range(nb_player):
         if PLAYER_STATES[i] == "ALIVE":
